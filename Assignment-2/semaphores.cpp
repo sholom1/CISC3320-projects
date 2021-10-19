@@ -7,6 +7,7 @@
 #include <stdio.h>       
 #include <unistd.h>
 #include <time.h>
+#include <mutex>
 
 using namespace std;
 #pragma region declarations
@@ -18,65 +19,71 @@ class Semaphore {
     private:
         string name;
         int avaliableResources;
-        queue<ResourceRequest> requestQueue;
-        unordered_set<int> activeRequests; 
+        queue<int> requestQueue;
+        unordered_set<int> activeRequests;
+        mutex &resource_mutex;
     public:
-        Semaphore(const char * name, int size);
-        bool RequestResource(ResourceRequest req);
+        Semaphore(const char * name, int size, mutex &mu) : name(name), avaliableResources(size), resource_mutex(mu){
+            this->requestQueue = queue<int>();
+            this->activeRequests = unordered_set<int>(size);
+        };
+        bool RequestResource(int pid);
         void ReleaseResource(int pid);
 };
 void randSleep();
 #pragma endregion
 int main(int argc, char const *argv[])
 {
-    srand(time(NULL));
-    Semaphore resources[] = {Semaphore("Printer", 5), Semaphore("Plotters", 6), Semaphore("Scanners", 4)};
+    mutex mu_pr, mu_pl, mu_ps;
+    //Semaphore resources[] = {Semaphore("Printer", 5, mu_pr), Semaphore("Plotters", 6, mu_pl), Semaphore("Scanners", 4, mu_ps)};
+    Semaphore selectedResource = Semaphore("Printer", 5, mu_pr);
+    srand(time(0));
     for (int i = 0; i < 100; i++){
+        int val = rand() % 3;
         int pid = fork();
         if (pid == 0){
-            cout << rand() % 3 << endl;
-            Semaphore selectedResource = resources[rand() % 3];
-            bool fulfilled = selectedResource.RequestResource({getpid(), randSleep});
+            //Semaphore selectedResource = resources[val];
+            bool fulfilled = selectedResource.RequestResource(getpid());
             if (!fulfilled){
                 pause();
             }
+            randSleep();
+            selectedResource.ReleaseResource(getpid());
             exit(0);
         }
     }
-    wait(NULL);
+    for (int i = 0; i < 100; i++) wait(NULL);
     return 0;
 }
-Semaphore::Semaphore(const char * name, int size){
-    this->name = string(name);
-    this->requestQueue = queue<ResourceRequest>();
-    this->activeRequests = unordered_set<int>(size);
-    this->avaliableResources = size;
-}
-bool Semaphore::RequestResource(ResourceRequest req){
+bool Semaphore::RequestResource(int pid){
+    while(!this->resource_mutex.try_lock()){cout<<"Resource locked"<<endl;};
     bool avaliable = this->avaliableResources > 0;
-    cout << "The process with pid: " + to_string(req.pid) + " requests a " + this->name + " resource" << endl;
+    cout << "The process with pid: " + to_string(pid) + " requests a " + this->name + " resource" << endl;
     cout << "The " + this->name + " semaphore has " + to_string(this->avaliableResources) + " resources avaliable" << endl;
     if (avaliable){
-        cout << "Request success" << endl;
+        cout << "Resource is avaliable" << endl;
         this->avaliableResources--;
-        activeRequests.insert(req.pid);
-        req.request();
-        this->ReleaseResource(req.pid);
+        activeRequests.insert(pid);
     }else{
         cout << "Request failed, request has been placed in queue" << endl;
-        this->requestQueue.push(req);
+        this->requestQueue.push(pid);
     }
+    this->resource_mutex.unlock();
     return avaliable;
 }
 void Semaphore::ReleaseResource(int pid){
+    cout << "The process with pid: " + to_string(pid) + " Has completed it's request" << endl;
+    while(!this->resource_mutex.try_lock()){};
     if (this->activeRequests.erase(pid)){
-        this->avaliableResources++;
         if (requestQueue.size() > 0){
             auto next = requestQueue.front();
             requestQueue.pop();
-            RequestResource(next);
+            kill(next, SIGCONT);
+        }else{
+            this->avaliableResources++;
         }
     }
+    this->resource_mutex.unlock();
 }
 void randSleep(){
     sleep(rand() % 4 + 1);
