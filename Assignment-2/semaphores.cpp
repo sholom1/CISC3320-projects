@@ -34,15 +34,17 @@ void randSleep();
 #pragma endregion
 int main(int argc, char const *argv[])
 {
+    //Create locks for each resource
     mutex mu_pr, mu_pl, mu_ps;
-    //Semaphore resources[] = {Semaphore("Printer", 5, mu_pr), Semaphore("Plotters", 6, mu_pl), Semaphore("Scanners", 4, mu_ps)};
-    Semaphore selectedResource = Semaphore("Printer", 5, mu_pr);
+    //Create semaphores
+    Semaphore resources[] = {Semaphore("Printer", 5, mu_pr), Semaphore("Plotters", 6, mu_pl), Semaphore("Scanners", 4, mu_ps)};
+    //Initilize random
     srand(time(0));
     for (int i = 0; i < 100; i++){
         int val = rand() % 3;
         int pid = fork();
         if (pid == 0){
-            //Semaphore selectedResource = resources[val];
+            Semaphore selectedResource = resources[val];
             bool fulfilled = selectedResource.RequestResource(getpid());
             if (!fulfilled){
                 pause();
@@ -56,10 +58,12 @@ int main(int argc, char const *argv[])
     return 0;
 }
 bool Semaphore::RequestResource(int pid){
+    //Wait until lock is avaliable
     while(!this->resource_mutex.try_lock()){cout<<"Resource locked"<<endl;};
     bool avaliable = this->avaliableResources > 0;
     cout << "The process with pid: " + to_string(pid) + " requests a " + this->name + " resource" << endl;
     cout << "The " + this->name + " semaphore has " + to_string(this->avaliableResources) + " resources avaliable" << endl;
+    //sleep(1);
     if (avaliable){
         cout << "Resource is avaliable" << endl;
         this->avaliableResources--;
@@ -86,5 +90,6 @@ void Semaphore::ReleaseResource(int pid){
     this->resource_mutex.unlock();
 }
 void randSleep(){
+    //sleep(rand() % 100 + 1);
     sleep(rand() % 4 + 1);
 }
