@@ -44,13 +44,12 @@ int main(int argc, char const *argv[])
         int val = rand() % 3;
         int pid = fork();
         if (pid == 0){
-            Semaphore selectedResource = resources[val];
-            bool fulfilled = selectedResource.RequestResource(getpid());
+            bool fulfilled = resources[val].RequestResource(getpid());
             if (!fulfilled){
                 pause();
             }
             randSleep();
-            selectedResource.ReleaseResource(getpid());
+            resources[val].ReleaseResource(getpid());
             exit(0);
         }
     }
@@ -77,7 +76,7 @@ bool Semaphore::RequestResource(int pid){
 }
 void Semaphore::ReleaseResource(int pid){
     cout << "The process with pid: " + to_string(pid) + " Has completed it's request" << endl;
-    while(!this->resource_mutex.try_lock()){};
+    while(!this->resource_mutex.try_lock()){cout<<"Resource locked"<<endl;};
     if (this->activeRequests.erase(pid)){
         if (requestQueue.size() > 0){
             auto next = requestQueue.front();

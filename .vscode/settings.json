@@ -11,6 +11,7 @@
         "utility": "cpp",
         "fstream": "cpp",
         "iostream": "cpp",
-        "ctime": "cpp"
+        "ctime": "cpp",
+        "iosfwd": "cpp"
     }
 }
