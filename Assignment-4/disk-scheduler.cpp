@@ -5,8 +5,10 @@
 #include <fstream>
 #include <algorithm>
 #include <list>
+#include <string>
 
 using namespace std;
+template<class Container> int traverseHead(Container& container, int& head);
 int main(int argc, char const *argv[])
 {  
     if (argc != 3) {
@@ -41,11 +43,30 @@ int main(int argc, char const *argv[])
         seekTotal += distance;
         SSFT.pop_front();
     }
+    cout << seekTotal << endl;
     //Scan
-    sort(requests.begin(), requests.end());
-    for (auto& x: requests) cout << x << " ";
-    cout << endl;
-    auto mid = 
+    vector<int> up;
+    vector<int> down;
+    for (auto& x: requests){
+        if (x < initialPos)
+            down.push_back(x);
+        if (x >= initialPos)
+            up.push_back(x);
+    }
+    sort(up.begin(), up.end());
+    sort(down.begin(), down.begin());
+    bool direction = argv[2] == "upwards";
+    value = initialPos;
+    seekTotal = traverseHead(direction ? up: down, value);
+    seekTotal += traverseHead(direction ? down: up, value);
     cout << seekTotal << endl;
     return 0;
+}
+template<class Container> int traverseHead(Container& container, int& head){
+    int seekTime = 0;
+    for(auto& x: container){
+        seekTime += abs(x - head);
+        head = x;
+    }
+    return seekTime;
 }
